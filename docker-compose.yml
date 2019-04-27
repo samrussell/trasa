@@ -1,0 +1,42 @@
+version: '2'
+
+services:
+    quagga:
+        build:
+            context: .
+            dockerfile: Dockerfile.quagga
+        image: 'trasa/quagga:latest'
+        command: bash -c "ldpd -u root -g root"
+        networks:
+            trasa-net:
+                ipv4_address: 172.26.1.101
+        volumes:
+            - ./quagga/:/etc/quagga/
+    debug:
+        build:
+            context: .
+            dockerfile: Dockerfile.trasa
+        image: 'trasa/trasa:latest'
+        command: bash
+        networks:
+            trasa-net:
+                ipv4_address: 172.26.1.104
+        volumes:
+            - ./debug/:/tmp/debug/
+    trasa:
+        build:
+            context: .
+            dockerfile: Dockerfile.trasa
+        image: 'trasa/trasa:latest'
+        command: bash -c "cd trasa; python3 run.py"
+        networks:
+            trasa-net:
+                ipv4_address: 172.26.1.106
+        volumes:
+            - ./:/trasa
+
+networks:
+    trasa-net:
+        ipam:
+            config:
+                - subnet: 172.26.1.0/24

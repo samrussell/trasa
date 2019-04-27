@@ -1,0 +1,17 @@
+FROM ubuntu:18.04
+
+RUN apt-get update
+RUN apt-get install -y git build-essential autoconf automake
+RUN apt-get install -y libtool gawk libreadline-dev pkg-config libc-ares-dev texinfo
+
+WORKDIR /tmp
+RUN git clone https://github.com/rwestphal/quagga-ldpd.git
+WORKDIR quagga-ldpd
+
+RUN autoreconf -i
+RUN ./configure --enable-mpls --enable-ldpd --sysconfdir=/etc/quagga --localstatedir=/var/run
+RUN make
+RUN make install
+RUN ldconfig
+
+WORKDIR /root
