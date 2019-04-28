@@ -7,6 +7,7 @@ import select
 
 from .ldp_pdu import LdpPdu, parse_ldp_pdu
 from .ldp_message import LdpHelloMessage
+from .stream_server import StreamServer
 
 def build_byte_string(hex_stream):
     values = [int(x, 16) for x in map(''.join, zip(*[iter(hex_stream)]*2))]
@@ -27,8 +28,19 @@ class Ldp(object):
 
         self.eventlets.append(self.pool.spawn(self.handle_packets_in))
         self.eventlets.append(self.pool.spawn(self.hello_timer))
+        self.eventlets.append(self.pool.spawn(self.run_tcp_handler))
 
         self.pool.waitall()
+
+    def run_tcp_handler(self):
+        print("Starting TCP socket on %s:%s" % (self.listen_ip, self.listen_port))
+        self.stream_server = StreamServer((self.listen_ip, self.listen_port), self.handle_tcp)
+        self.stream_server.serve_forever()
+
+    def handle_tcp(self, socket, address):
+        peer_ip, peer_port = address
+        print("Got connetion from %s:%s" % (peer_ip, peer_port))
+        socket.close()
 
     def handle_packets_in(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -73,11 +85,12 @@ class Ldp(object):
         while self.running:
             sleep(1)
             if int(time()) > next_timer_at:
-                self.send_hello(1)
+                self.send_hello(message_id)
                 message_id += 1
                 next_timer_at += 5
 
     def send_hello(self, message_id):
+        print("Sending hello message")
         tlvs = [
             build_byte_string("04000004002dc000"),
             build_byte_string("04010004ac1a016a"),
