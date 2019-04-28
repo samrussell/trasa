@@ -3,7 +3,7 @@ from eventlet import sleep, GreenPool
 
 import select
 
-from .ldp_message import LdpMessage, LdpMessageParser, LdpMessagePacker
+from .ldp_pdu import LdpPdu, parse_ldp_pdu
 
 class Ldp(object):
     def __init__(self):
@@ -11,9 +11,6 @@ class Ldp(object):
         self.listen_port = 646
         self.running = False
         self.socket = None
-
-        self.packer = LdpMessagePacker()
-        self.parser = LdpMessageParser()
 
     def run(self):
         self.running = True
@@ -43,8 +40,11 @@ class Ldp(object):
                             print("Receiving message")
                             data, address = self.socket.recvfrom(4096)
                             print("Received %s from %s" % (data, address))
-                            message = self.parser.parse(data)
-                            print("Message: %s" % message)
+                            pdu = parse_ldp_pdu(data)
+                            print("PDU: %s" % pdu)
+                            messages = pdu.messages
+                            for message in messages:
+                                print("Message: %s" % message)
                             #self.queue.put(data)
                         events = self.poller.poll(10)
         except OSError:
