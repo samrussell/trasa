@@ -1,9 +1,16 @@
 from eventlet.green import socket
 from eventlet import sleep, GreenPool
+from time import time
 
+import struct
 import select
 
 from .ldp_pdu import LdpPdu, parse_ldp_pdu
+from .ldp_message import LdpHelloMessage
+
+def build_byte_string(hex_stream):
+    values = [int(x, 16) for x in map(''.join, zip(*[iter(hex_stream)]*2))]
+    return struct.pack("!" + "B" * len(values), *values)
 
 class Ldp(object):
     def __init__(self):
@@ -11,9 +18,19 @@ class Ldp(object):
         self.listen_port = 646
         self.running = False
         self.socket = None
+        self.eventlets = []
 
     def run(self):
         self.running = True
+        self.pool = GreenPool()
+        self.eventlets = []
+
+        self.eventlets.append(self.pool.spawn(self.handle_packets_in))
+        self.eventlets.append(self.pool.spawn(self.hello_timer))
+
+        self.pool.waitall()
+
+    def handle_packets_in(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.listen_ip, self.listen_port))
 
@@ -50,6 +67,31 @@ class Ldp(object):
         except OSError:
             pass
 
+    def hello_timer(self):
+        next_timer_at = int(time())
+        message_id = 1
+        while self.running:
+            sleep(1)
+            if int(time()) > next_timer_at:
+                self.send_hello(1)
+                message_id += 1
+                next_timer_at += 5
+
+    def send_hello(self, message_id):
+        tlvs = [
+            build_byte_string("04000004002dc000"),
+            build_byte_string("04010004ac1a016a"),
+            build_byte_string("0402000400000001")
+        ]
+        message = LdpHelloMessage(message_id, tlvs)
+        pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
+        address = ('172.26.1.101', 646)
+        if self.socket:
+            self.socket.sendto(pdu.pack(), address)
+
     def shutdown(self):
         self.running = False
         self.socket.close()
+
+        for eventlet in self.eventlets:
+            eventlet.kill()
