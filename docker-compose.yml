@@ -12,6 +12,17 @@ services:
                 ipv4_address: 172.26.1.111
         volumes:
             - ./quagga/:/etc/quagga/
+    frr:
+        build:
+            context: .
+            dockerfile: Dockerfile.frr
+        image: 'trasa/frr:latest'
+        command: bash
+        networks:
+            trasa-net:
+                ipv4_address: 172.26.1.112
+        volumes:
+            - ./quagga/:/etc/quagga/
     debug:
         build:
             context: .

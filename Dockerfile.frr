@@ -1,0 +1,54 @@
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND=noninteractive 
+
+RUN apt-get update
+RUN apt-get install -y \
+   build-essential protobuf-c-compiler libprotobuf-c-dev \
+   libzmq5 libzmq3-dev cmake libpcre3 libpcre3-dev \
+   git autoconf automake libtool make libreadline-dev texinfo \
+   pkg-config libpam0g-dev libjson-c-dev bison flex python-pytest \
+   libc-ares-dev python3-dev libsystemd-dev python-ipaddress python3-sphinx \
+   install-info build-essential libsystemd-dev libsnmp-dev perl
+
+WORKDIR /tmp
+RUN git clone https://github.com/CESNET/libyang.git
+WORKDIR libyang
+RUN mkdir build
+WORKDIR build
+RUN cmake -DENABLE_LYD_PRIV=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr \
+      -D CMAKE_BUILD_TYPE:String="Release" -DENABLE_CACHE=OFF ..
+RUN make
+RUN make install
+
+WORKDIR /tmp
+RUN git clone https://github.com/frrouting/frr.git frr
+WORKDIR frr
+
+RUN ./bootstrap.sh
+RUN ./configure \
+    --prefix=/usr \
+    --includedir=\${prefix}/include \
+    --enable-exampledir=\${prefix}/share/doc/frr/examples \
+    --bindir=\${prefix}/bin \
+    --sbindir=\${prefix}/lib/frr \
+    --libdir=\${prefix}/lib/frr \
+    --libexecdir=\${prefix}/lib/frr \
+    --localstatedir=/var/run/frr \
+    --sysconfdir=/etc/frr \
+    --with-moduledir=\${prefix}/lib/frr/modules \
+    --with-libyang-pluginsdir=\${prefix}/lib/frr/libyang_plugins \
+    --enable-configfile-mask=0640 \
+    --enable-logfile-mask=0640 \
+    --enable-snmp=agentx \
+    --enable-multipath=64 \
+    --enable-user=frr \
+    --enable-group=frr \
+    --enable-vty-group=frrvty \
+    --with-pkg-git-version \
+    --with-pkg-extra-version=-MyOwnFRRVersion
+RUN make
+RUN make install
+RUN ldconfig
+
+WORKDIR /root
