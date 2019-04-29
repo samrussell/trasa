@@ -39,7 +39,7 @@ class Ldp(object):
 
     def handle_tcp(self, socket, address):
         peer_ip, peer_port = address
-        print("Got connetion from %s:%s" % (peer_ip, peer_port))
+        print("Got connection from %s:%s" % (peer_ip, peer_port))
         socket.close()
 
     def handle_packets_in(self):
@@ -98,9 +98,11 @@ class Ldp(object):
         ]
         message = LdpHelloMessage(message_id, tlvs)
         pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
-        address = ('172.26.1.101', 646)
+        address = ('172.26.1.111', 646)
         if self.socket:
             self.socket.sendto(pdu.pack(), address)
+        else:
+            print("Not sending; UDP socket dead")
 
     def shutdown(self):
         self.running = False

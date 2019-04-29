@@ -9,7 +9,7 @@ services:
         command: bash -c "ldpd -u root -g root"
         networks:
             trasa-net:
-                ipv4_address: 172.26.1.101
+                ipv4_address: 172.26.1.111
         volumes:
             - ./quagga/:/etc/quagga/
     debug:

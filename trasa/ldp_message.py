@@ -18,7 +18,6 @@ class LdpMessageParser(object):
 
     def parse(self, serialised_message):
         message_type, message_length = struct.unpack("!HH", serialised_message[:4])
-        print("Message header: %s" % serialised_message[:4])
         print("Message type: %s, length: %s" % (message_type, message_length))
         return PARSERS[message_type](serialised_message[4:])
 
