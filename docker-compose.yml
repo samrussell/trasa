@@ -13,16 +13,13 @@ services:
         volumes:
             - ./quagga/:/etc/quagga/
     frr:
-        build:
-            context: .
-            dockerfile: Dockerfile.frr
-        image: 'trasa/frr:latest'
-        command: bash
+        image: 'cumulusnetworks/frrouting:latest'
+        privileged: true
         networks:
             trasa-net:
                 ipv4_address: 172.26.1.112
         volumes:
-            - ./quagga/:/etc/quagga/
+            - ./frr/:/etc/frr/
     debug:
         build:
             context: .
