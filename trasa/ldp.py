@@ -109,10 +109,10 @@ class Ldp(object):
 
     def send_hello(self, message_id):
         print("Sending hello message")
-        tlvs = [
-            build_byte_string("04000004000f0000"),
-            build_byte_string("04010004ac1a016a")
-        ]
+        tlvs = {
+            0x0400 : build_byte_string("000f0000"),
+            0x0401 : build_byte_string("ac1a016a")
+        }
         message = LdpHelloMessage(message_id, tlvs)
         pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
         address = ('224.0.0.2', 646)
