@@ -102,10 +102,18 @@ class LdpInitialisationMessage(LdpMessage):
         return cls(message_id, protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, receiver_ldp_identifier, tlvs)
 
     def pack(self):
+        # handle common TLVs
+        common_session_parameters = struct.pack(
+            "!HHBBH6s",
+            self.protocol_version, self.keepalive_time, self.flags, self.path_vector_limit, self.max_pdu_length, self.receiver_ldp_identifier
+        )
+
+        common_session_parameters_tlv = pack_tlv(0x0500, common_session_parameters)
+
         packed_message_body = struct.pack(
             "!I",
             self.message_id
-        ) + pack_tlvs(self.tlvs)
+        ) + common_session_parameters_tlv + pack_tlvs(self.tlvs)
         message_length = len(packed_message_body)
         packed_message_header = struct.pack(
             "!HH",

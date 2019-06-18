@@ -1,4 +1,4 @@
-from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpMessageParser
+from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMessage, LdpMessageParser
 import socket
 import struct
 import unittest
@@ -51,6 +51,18 @@ class LdpMessageTestCase(unittest.TestCase):
         # TODO: handle common TLVs differently somehow...
         self.assertEqual(message.protocol_version, 1)
         self.assertEqual(message.keepalive_time, 180)
+        self.assertEqual(message.flags, 0)
         self.assertEqual(message.path_vector_limit, 0)
         self.assertEqual(message.max_pdu_length, 0)
         self.assertEqual(message.receiver_ldp_identifier, build_byte_string("ac1a016a0000"))
+
+    def test_initialisation_message_packs(self):
+        expected_serialised_message = build_byte_string("02000025000000300500000e000100b400000000ac1a016a00008506000180850b0001808603000180")
+        tlvs = {
+            0x8506 : build_byte_string("80"),
+            0x850b : build_byte_string("80"),
+            0x8603 : build_byte_string("80")
+        }
+        message = LdpInitialisationMessage(48, 1, 180, 0, 0, 0, build_byte_string("ac1a016a0000"), tlvs)
+        serialised_message = message.pack()
+        self.assertEqual(serialised_message, expected_serialised_message)
