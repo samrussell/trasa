@@ -30,3 +30,22 @@ class LdpMessageTestCase(unittest.TestCase):
         message = LdpHelloMessage(8, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
+
+    def test_initialisation_message_parses(self):
+        serialised_message = build_byte_string("02000025000000300500000e000100b400000000ac1a016a00008506000180850b0001808603000180")
+        # 0200 initialisation message
+        # 0025 message length 37
+        # 00000030 message id 48
+        # 0500000e000100b400000000ac1a016a0000 common session parameters tlv
+        # 8506000180 no idea what this tlv is
+        # 850b000180 no idea what this tlv is
+        # 8603000180 no idea what this tlv is
+        message = LdpMessageParser().parse(serialised_message)
+        expected_tlvs = [
+            build_byte_string("0500000e000100b400000000ac1a016a0000"),
+            build_byte_string("8506000180"),
+            build_byte_string("850b000180"),
+            build_byte_string("8603000180")
+        ]
+        self.assertEqual(message.message_id, 48)
+        self.assertEqual(message.tlvs, expected_tlvs)

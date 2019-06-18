@@ -67,3 +67,40 @@ class LdpHelloMessage(LdpMessage):
         return "LdpHelloMessage: ID: %s" % (
             self.message_id
             )
+
+@register_parser
+class LdpInitialisationMessage(LdpMessage):
+    MSG_TYPE = LdpMessage.INIT_MESSAGE
+
+    def __init__(self, message_id, tlvs):
+        self.message_id = message_id
+        self.tlvs = tlvs
+
+    @classmethod
+    def parse(cls, serialised_message):
+        message_id, = struct.unpack(
+            "!I",
+            serialised_message[:4]
+        )
+        serialised_tlvs = serialised_message[4:]
+        tlvs = parse_tlvs(serialised_tlvs)
+        return cls(message_id, tlvs)
+
+    def pack(self):
+        packed_message_body = struct.pack(
+            "!I",
+            self.message_id
+        ) + pack_tlvs(self.tlvs)
+        message_length = len(packed_message_body)
+        packed_message_header = struct.pack(
+            "!HH",
+            self.MSG_TYPE,
+            message_length
+        )
+
+        return packed_message_header + packed_message_body
+
+    def __str__(self):
+        return "LdpInitialisationMessage: ID: %s" % (
+            self.message_id
+            )
