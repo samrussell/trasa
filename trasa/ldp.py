@@ -91,14 +91,19 @@ class Ldp(object):
 
     def send_hello(self, message_id):
         print("Sending hello message")
+        # tlvs = [
+        #     build_byte_string("04000004002dc000"),
+        #     build_byte_string("04010004ac1a016a"),
+        #     build_byte_string("0402000400000001")
+        # ]
         tlvs = [
-            build_byte_string("04000004002dc000"),
-            build_byte_string("04010004ac1a016a"),
-            build_byte_string("0402000400000001")
+            build_byte_string("04000004000f0000"),
+            build_byte_string("04010004ac1a016a")
         ]
         message = LdpHelloMessage(message_id, tlvs)
         pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
-        address = ('172.26.1.111', 646)
+        #address = ('172.26.1.111', 646)
+        address = ('224.0.0.2', 646)
         if self.socket:
             self.socket.sendto(pdu.pack(), address)
         else:
