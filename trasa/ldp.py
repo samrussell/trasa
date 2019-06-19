@@ -4,9 +4,10 @@ from time import time
 
 import struct
 import select
+from copy import copy
 
 from .ldp_pdu import LdpPdu, parse_ldp_pdu
-from .ldp_message import LdpHelloMessage
+from .ldp_message import LdpHelloMessage, LdpInitialisationMessage
 from .stream_server import StreamServer
 from .chopper import Chopper
 
@@ -42,6 +43,7 @@ class Ldp(object):
 
     def handle_tcp(self, socket, address):
         peer_ip, peer_port = address
+        messages_sent = 0
         print("Got connection from %s:%s" % (peer_ip, peer_port))
         input_stream = socket.makefile(mode="rb")
         chopper = Chopper(4, 2, 0, input_stream)
@@ -56,6 +58,25 @@ class Ldp(object):
                 messages = pdu.messages
                 for message in messages:
                     print("Message: %s" % message)
+                    # simple mode - when we get an initialisation message send one back
+                    if isinstance(message, LdpInitialisationMessage):
+                        #reply_message = copy(message)
+                        #reply_message.receiver_ldp_identifier = bytes.fromhex("ac1a01700000")
+                        message_id = messages_sent+1
+                        reply_message = LdpInitialisationMessage(
+                            message_id,
+                            1,
+                            180,
+                            0,
+                            0,
+                            0,
+                            bytes.fromhex("ac1a01700000"),
+                            {}
+                        )
+                        pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
+                        socket.send(pdu.pack())
+                        messages_sent += 1
+
             except SocketClosedError as e:
                 print("Socket closed from %s:%s" % (peer_ip, peer_port))
         socket.close()

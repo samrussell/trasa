@@ -10,6 +10,44 @@ from io import BytesIO
 class LdpMessage(object):
     HELLO_MESSAGE = 0x100
     INIT_MESSAGE = 0x200
+    ADDRESS_MESSAGE = 0x300
+
+class LdpGenericMessage(LdpMessage):
+    def __init__(self, message_type, message_id, tlvs):
+        self.message_type = message_type
+        self.message_id = message_id
+        self.tlvs = tlvs
+
+    @classmethod
+    def parse(cls, message_type, serialised_message):
+        message_id, = struct.unpack(
+            "!I",
+            serialised_message[:4]
+        )
+        serialised_tlvs = serialised_message[4:]
+        tlvs = parse_tlvs(serialised_tlvs)
+        return cls(message_type, message_id, tlvs)
+
+    def pack(self):
+        packed_message_body = struct.pack(
+            "!I",
+            self.message_id
+        ) + pack_tlvs(self.tlvs)
+        message_length = len(packed_message_body)
+        packed_message_header = struct.pack(
+            "!HH",
+            self.message_type,
+            message_length
+        )
+
+        return packed_message_header + packed_message_body
+
+    def __str__(self):
+        return "LdpGenericMessage: Type: %s, ID: %s, TLVs: %s" % (
+            self.message_type,
+            self.message_id,
+            self.tlvs
+            )
 
 PARSERS = {}
 
@@ -20,7 +58,10 @@ class LdpMessageParser(object):
     def parse(self, serialised_message):
         message_type, message_length = struct.unpack("!HH", serialised_message[:4])
         print("Message type: %s, length: %s" % (message_type, message_length))
-        return PARSERS[message_type](serialised_message[4:])
+        if message_type in PARSERS:
+            return PARSERS[message_type](serialised_message[4:])
+
+        return LdpGenericMessage.parse(message_type, serialised_message[4:])
 
 def register_parser(cls):
     PARSERS[cls.MSG_TYPE] = cls.parse
@@ -132,5 +173,43 @@ class LdpInitialisationMessage(LdpMessage):
             self.path_vector_limit,
             self.max_pdu_length,
             self.receiver_ldp_identifier,
+            self.tlvs
+            )
+
+@register_parser
+class LdpAddressMessage(LdpMessage):
+    MSG_TYPE = LdpMessage.ADDRESS_MESSAGE
+
+    def __init__(self, message_id, tlvs):
+        self.message_id = message_id
+        self.tlvs = tlvs
+
+    @classmethod
+    def parse(cls, serialised_message):
+        message_id, = struct.unpack(
+            "!I",
+            serialised_message[:4]
+        )
+        serialised_tlvs = serialised_message[4:]
+        tlvs = parse_tlvs(serialised_tlvs)
+        return cls(message_id, tlvs)
+
+    def pack(self):
+        packed_message_body = struct.pack(
+            "!I",
+            self.message_id
+        ) + pack_tlvs(self.tlvs)
+        message_length = len(packed_message_body)
+        packed_message_header = struct.pack(
+            "!HH",
+            self.MSG_TYPE,
+            message_length
+        )
+
+        return packed_message_header + packed_message_body
+
+    def __str__(self):
+        return "LdpAddressMessage: ID: %s, TLVs: %s" % (
+            self.message_id,
             self.tlvs
             )

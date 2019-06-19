@@ -1,4 +1,5 @@
-from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMessage, LdpMessageParser
+from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMessage, LdpAddressMessage, \
+                              LdpMessageParser
 import socket
 import struct
 import unittest
@@ -64,5 +65,29 @@ class LdpMessageTestCase(unittest.TestCase):
             0x8603 : build_byte_string("80")
         }
         message = LdpInitialisationMessage(48, 1, 180, 0, 0, 0, build_byte_string("ac1a016a0000"), tlvs)
+        serialised_message = message.pack()
+        self.assertEqual(serialised_message, expected_serialised_message)
+
+    def test_address_message_parses(self):
+        serialised_message = build_byte_string("0300001a000000030101001200010a0143060a0138060606060642060606")
+        # 0300 address message
+        # 001a length 26
+        # 00000003 message id 3
+        # 0101 address list tlv
+        # 0012 length 18
+        # 00010a0143060a0138060606060642060606 tlv data
+        message = LdpMessageParser().parse(serialised_message)
+        expected_tlvs = {
+            0x0101 : build_byte_string("00010a0143060a0138060606060642060606")
+        }
+        self.assertEqual(message.message_id, 3)
+        self.assertEqual(message.tlvs, expected_tlvs)
+
+    def test_address_message_packs(self):
+        expected_serialised_message = build_byte_string("0300001a000000030101001200010a0143060a0138060606060642060606")
+        tlvs = {
+            0x0101 : build_byte_string("00010a0143060a0138060606060642060606")
+        }
+        message = LdpAddressMessage(3, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
