@@ -52,9 +52,7 @@ class Ldp(object):
             try:
                 serialised_pdu = chopper.next()
                 print("Got PDU from %s:%s" % (peer_ip, peer_port))
-                print("PDU: %s" % serialised_pdu)
                 pdu = parse_ldp_pdu(serialised_pdu)
-                print("PDU: %s" % pdu)
                 messages = pdu.messages
                 for message in messages:
                     print("Message: %s" % message)
@@ -115,14 +113,19 @@ class Ldp(object):
                         if event == select.POLLERR or event == select.POLLHUP or event == select.POLLNVAL:
                             break
                         if event == select.POLLIN:
-                            print("Receiving message")
                             data, address = self.socket.recvfrom(4096)
-                            print("Received %s from %s" % (data, address))
                             pdu = parse_ldp_pdu(data)
-                            print("PDU: %s" % pdu)
                             messages = pdu.messages
-                            for message in messages:
-                                print("Message: %s" % message)
+                            if len(messages) > 1:
+                                print("Weird... got PDU from %s with lots of messages: " % (address, messages))
+                                continue
+
+                            message = messages[0]
+                            if not isinstance(message, LdpHelloMessage):
+                                print("Got message from %s but it isn't a hello message: %s" % (address, message))
+                                continue
+
+                            print("Got hello message from %s ID %s" % (address, message.message_id))
                             #self.queue.put(data)
                         events = self.poller.poll(10)
         except OSError:

@@ -3,6 +3,7 @@ from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMess
 import socket
 import struct
 import unittest
+from ipaddress import IPv4Address
 
 def build_byte_string(hex_stream):
     values = [int(x, 16) for x in map(''.join, zip(*[iter(hex_stream)]*2))]
@@ -77,17 +78,26 @@ class LdpMessageTestCase(unittest.TestCase):
         # 0012 length 18
         # 00010a0143060a0138060606060642060606 tlv data
         message = LdpMessageParser().parse(serialised_message)
-        expected_tlvs = {
-            0x0101 : build_byte_string("00010a0143060a0138060606060642060606")
-        }
+        expected_tlvs = {}
+        expected_addresses = [
+            IPv4Address('10.1.67.6'),
+            IPv4Address('10.1.56.6'),
+            IPv4Address('6.6.6.6'),
+            IPv4Address('66.6.6.6')
+        ]
         self.assertEqual(message.message_id, 3)
+        self.assertEqual(message.addresses, expected_addresses)
         self.assertEqual(message.tlvs, expected_tlvs)
 
     def test_address_message_packs(self):
         expected_serialised_message = build_byte_string("0300001a000000030101001200010a0143060a0138060606060642060606")
-        tlvs = {
-            0x0101 : build_byte_string("00010a0143060a0138060606060642060606")
-        }
-        message = LdpAddressMessage(3, tlvs)
+        tlvs = {}
+        addresses = [
+            IPv4Address('10.1.67.6'),
+            IPv4Address('10.1.56.6'),
+            IPv4Address('6.6.6.6'),
+            IPv4Address('66.6.6.6')
+        ]
+        message = LdpAddressMessage(3, addresses, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)

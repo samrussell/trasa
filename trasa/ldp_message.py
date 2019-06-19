@@ -1,19 +1,19 @@
 import struct
 import socket
-from .packing_tools import bytes_to_short, bytes_to_integer
-from .ip import IP4Prefix, IP4Address
-from .ip import IP6Prefix, IP6Address
+from .packing_tools import bytes_to_short, bytes_to_integer, short_to_bytes, integer_to_bytes
 from .chopper import Chopper
 from .tlv import parse_tlv, pack_tlv
 from io import BytesIO
 from itertools import chain
 from collections import OrderedDict
+from ipaddress import IPv4Address
 
 class LdpMessage(object):
     HELLO_MESSAGE = 0x100
     INIT_MESSAGE = 0x200
     KEEPALIVE_MESSAGE = 0x201
     ADDRESS_MESSAGE = 0x300
+    LABEL_MAPPING_MESSAGE = 0x400
 
 class LdpGenericMessage(LdpMessage):
     def __init__(self, message_type, message_id, tlvs):
@@ -150,25 +150,58 @@ class LdpInitialisationMessage(LdpMessage):
             self.tlvs
             )
 
+def unpack_address_list_tlv(packed_addresses):
+    family = bytes_to_short(packed_addresses[:2])
+    if family != 1:
+        raise Exception("Address family not supported %s" % packed_addresses)
+    body = packed_addresses[2:]
+    addresses = []
+    while body:
+        data = body[:4]
+        body = body[4:]
+        addresses.append(IPv4Address(data))
+    return addresses
+
+def pack_address_list_tlv(addresses):
+    # assume IPv4
+    data_chunks = []
+    data_chunks.append(short_to_bytes(1))
+    for address in addresses:
+        data_chunks.append(integer_to_bytes(int(address)))
+    return b''.join(data_chunks)
+
 @register_parser
 class LdpAddressMessage(LdpMessage):
     MSG_TYPE = LdpMessage.ADDRESS_MESSAGE
 
-    def __init__(self, message_id, tlvs):
+    def __init__(self, message_id, addresses, tlvs):
         self.message_id = message_id
+        self.addresses = addresses
         self.tlvs = tlvs
+
+    def build_common_tlvs(self):
+        return OrderedDict([
+            (0x0101, pack_address_list_tlv(self.addresses))
+        ])
 
     @classmethod
     def parse(cls, serialised_message):
         generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
-        return cls(generic_message.message_id, generic_message.tlvs)
+
+        # handle common TLVs
+        packed_addresses = generic_message.tlvs.pop(0x0101)
+        addresses = unpack_address_list_tlv(packed_addresses)
+
+        return cls(generic_message.message_id, addresses, generic_message.tlvs)
 
     def pack(self):
-        return LdpGenericMessage(self.MSG_TYPE, self.message_id, self.tlvs).pack()
+        combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, combined_tlvs).pack()
 
     def __str__(self):
-        return "LdpAddressMessage: ID: %s, TLVs: %s" % (
+        return "LdpAddressMessage: ID: %s, Addresses: %s, TLVs: %s" % (
             self.message_id,
+            self.addresses,
             self.tlvs
             )
 
@@ -191,5 +224,45 @@ class LdpKeepaliveMessage(LdpMessage):
     def __str__(self):
         return "LdpKeepaliveMessage: ID: %s, TLVs: %s" % (
             self.message_id,
+            self.tlvs
+            )
+
+@register_parser
+class LdpLabelMappingMessage(LdpMessage):
+    MSG_TYPE = LdpMessage.LABEL_MAPPING_MESSAGE
+
+    def __init__(self, message_id, fecs, labels, tlvs):
+        self.message_id = message_id
+        self.fecs = fecs
+        self.labels = labels
+        self.tlvs = tlvs
+
+    def build_common_tlvs(self):
+        # handle common TLVs
+        return OrderedDict([
+            (0x0100, self.fecs)
+            (0x0200, self.labels)
+        ])
+
+    @classmethod
+    def parse(cls, serialised_message):
+        generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
+
+        # handle common TLVs
+        fecs = generic_message.tlvs.pop(0x0100)
+        labels = generic_message.tlvs.pop(0x0200)
+
+        return cls(generic_message.message_id, fecs, labels, generic_message.tlvs)
+
+    def pack(self):
+        combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
+
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, combined_tlvs).pack()
+
+    def __str__(self):
+        return "LdpLabelMappingMessage: ID: %s, FECS: %s, Labels: %s, TLVs: %s" % (
+            self.message_id,
+            self.fecs,
+            self.labels,
             self.tlvs
             )
