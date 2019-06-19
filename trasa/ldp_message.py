@@ -12,6 +12,7 @@ from collections import OrderedDict
 class LdpMessage(object):
     HELLO_MESSAGE = 0x100
     INIT_MESSAGE = 0x200
+    KEEPALIVE_MESSAGE = 0x201
     ADDRESS_MESSAGE = 0x300
 
 class LdpGenericMessage(LdpMessage):
@@ -159,30 +160,36 @@ class LdpAddressMessage(LdpMessage):
 
     @classmethod
     def parse(cls, serialised_message):
-        message_id, = struct.unpack(
-            "!I",
-            serialised_message[:4]
-        )
-        serialised_tlvs = serialised_message[4:]
-        tlvs = parse_tlvs(serialised_tlvs)
-        return cls(message_id, tlvs)
+        generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
+        return cls(generic_message.message_id, generic_message.tlvs)
 
     def pack(self):
-        packed_message_body = struct.pack(
-            "!I",
-            self.message_id
-        ) + pack_tlvs(self.tlvs)
-        message_length = len(packed_message_body)
-        packed_message_header = struct.pack(
-            "!HH",
-            self.MSG_TYPE,
-            message_length
-        )
-
-        return packed_message_header + packed_message_body
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, self.tlvs).pack()
 
     def __str__(self):
         return "LdpAddressMessage: ID: %s, TLVs: %s" % (
+            self.message_id,
+            self.tlvs
+            )
+
+@register_parser
+class LdpKeepaliveMessage(LdpMessage):
+    MSG_TYPE = LdpMessage.KEEPALIVE_MESSAGE
+
+    def __init__(self, message_id, tlvs):
+        self.message_id = message_id
+        self.tlvs = tlvs
+
+    @classmethod
+    def parse(cls, serialised_message):
+        generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
+        return cls(generic_message.message_id, generic_message.tlvs)
+
+    def pack(self):
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, self.tlvs).pack()
+
+    def __str__(self):
+        return "LdpKeepaliveMessage: ID: %s, TLVs: %s" % (
             self.message_id,
             self.tlvs
             )

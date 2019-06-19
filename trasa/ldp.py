@@ -7,7 +7,7 @@ import select
 from copy import copy
 
 from .ldp_pdu import LdpPdu, parse_ldp_pdu
-from .ldp_message import LdpHelloMessage, LdpInitialisationMessage
+from .ldp_message import LdpHelloMessage, LdpInitialisationMessage, LdpKeepaliveMessage
 from .stream_server import StreamServer
 from .chopper import Chopper
 
@@ -73,6 +73,14 @@ class Ldp(object):
                             bytes.fromhex("ac1a01700000"),
                             {}
                         )
+                        pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
+                        socket.send(pdu.pack())
+                        messages_sent += 1
+                    # simple mode part 2 - do the same with keepalives
+                    if isinstance(message, LdpKeepaliveMessage):
+                        reply_message = copy(message)
+                        message_id = messages_sent+1
+                        reply_message.message_id = message_id
                         pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
                         socket.send(pdu.pack())
                         messages_sent += 1
