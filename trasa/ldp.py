@@ -60,8 +60,6 @@ class Ldp(object):
                     print("Message: %s" % message)
                     # simple mode - when we get an initialisation message send one back
                     if isinstance(message, LdpInitialisationMessage):
-                        #reply_message = copy(message)
-                        #reply_message.receiver_ldp_identifier = bytes.fromhex("ac1a01700000")
                         message_id = messages_sent+1
                         reply_message = LdpInitialisationMessage(
                             message_id,
@@ -91,7 +89,11 @@ class Ldp(object):
 
     def handle_packets_in(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind((self.listen_ip, self.listen_port))
+        self.socket.bind(('224.0.0.2', self.listen_port))
+        self.socket.setsockopt(
+            socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
+            socket.inet_aton('224.0.0.2') + socket.inet_aton(self.listen_ip)
+        )
 
         self.poller = select.poll()
         self.poller.register(self.socket,
