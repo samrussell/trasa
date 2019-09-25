@@ -68,7 +68,8 @@ class Ldp(object):
                             0,
                             0,
                             0,
-                            bytes.fromhex("ac1a01700000"),
+                            "172.26.1.112",
+                            0,
                             {}
                         )
                         pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])

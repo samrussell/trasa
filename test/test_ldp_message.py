@@ -56,7 +56,7 @@ class LdpMessageTestCase(unittest.TestCase):
         self.assertEqual(message.flags, 0)
         self.assertEqual(message.path_vector_limit, 0)
         self.assertEqual(message.max_pdu_length, 0)
-        self.assertEqual(message.receiver_ldp_identifier, build_byte_string("ac1a016a0000"))
+        self.assertEqual(str(message.receiver_ldp_identifier), "172.26.1.106:0")
 
     def test_initialisation_message_packs(self):
         expected_serialised_message = build_byte_string("02000025000000300500000e000100b400000000ac1a016a00008506000180850b0001808603000180")
@@ -65,7 +65,7 @@ class LdpMessageTestCase(unittest.TestCase):
             0x850b : build_byte_string("80"),
             0x8603 : build_byte_string("80")
         }
-        message = LdpInitialisationMessage(48, 1, 180, 0, 0, 0, build_byte_string("ac1a016a0000"), tlvs)
+        message = LdpInitialisationMessage(48, 1, 180, 0, 0, 0, "172.26.1.106", 0, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
 

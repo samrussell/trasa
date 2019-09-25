@@ -3,6 +3,7 @@ import socket
 from .packing_tools import bytes_to_short, bytes_to_integer, short_to_bytes, integer_to_bytes
 from .chopper import Chopper
 from .tlv import parse_tlv, pack_tlv
+from .identifier import Identifier, parse_identifier
 from io import BytesIO
 from itertools import chain
 from collections import OrderedDict
@@ -102,21 +103,21 @@ class LdpHelloMessage(LdpMessage):
 class LdpInitialisationMessage(LdpMessage):
     MSG_TYPE = LdpMessage.INIT_MESSAGE
 
-    def __init__(self, message_id, protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, receiver_ldp_identifier, tlvs):
+    def __init__(self, message_id, protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, router_id, label_space_id, tlvs):
         self.message_id = message_id
         self.protocol_version = protocol_version
         self.keepalive_time = keepalive_time
         self.flags = flags
         self.path_vector_limit = path_vector_limit
         self.max_pdu_length = max_pdu_length
-        self.receiver_ldp_identifier = receiver_ldp_identifier
+        self.receiver_ldp_identifier = Identifier(router_id, label_space_id)
         self.tlvs = tlvs
 
     def build_common_tlvs(self):
         # handle common TLVs
         common_session_parameters = struct.pack(
             "!HHBBH6s",
-            self.protocol_version, self.keepalive_time, self.flags, self.path_vector_limit, self.max_pdu_length, self.receiver_ldp_identifier
+            self.protocol_version, self.keepalive_time, self.flags, self.path_vector_limit, self.max_pdu_length, self.receiver_ldp_identifier.pack()
         )
 
         return OrderedDict([(0x0500, common_session_parameters)])
@@ -127,11 +128,12 @@ class LdpInitialisationMessage(LdpMessage):
 
         # handle common TLVs
         common_session_parameters = generic_message.tlvs.pop(0x0500)
-        protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, receiver_ldp_identifier = struct.unpack(
+        protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, packed_receiver_ldp_identifier = struct.unpack(
             "!HHBBH6s", common_session_parameters
         )
+        receiver_ldp_identifier = parse_identifier(packed_receiver_ldp_identifier)
 
-        return cls(generic_message.message_id, protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, receiver_ldp_identifier, generic_message.tlvs)
+        return cls(generic_message.message_id, protocol_version, keepalive_time, flags, path_vector_limit, max_pdu_length, receiver_ldp_identifier.router_id, receiver_ldp_identifier.label_space_id, generic_message.tlvs)
 
     def pack(self):
         combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
