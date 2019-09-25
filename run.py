@@ -25,7 +25,7 @@ class Server(object):
             config = yaml.load(file.read())
         for router in config["routers"]:
             printmsg("Starting trasa on %s" % router["local_address"])
-            trasa = Ldp()
+            trasa = Ldp(router["local_address"])
             self.trasas.append(trasa)
             pool.spawn(self.call_handler, trasa)
         pool.waitall()

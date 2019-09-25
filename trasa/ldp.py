@@ -18,9 +18,11 @@ def build_byte_string(hex_stream):
     return struct.pack("!" + "B" * len(values), *values)
 
 class Ldp(object):
-    def __init__(self):
-        self.listen_ip = "172.26.1.106"
-        self.listen_port = 646
+    LISTEN_PORT = 646
+    MULTICAST_ADDRESS = '224.0.0.2'
+
+    def __init__(self, listen_ip):
+        self.listen_ip = listen_ip
         self.running = False
         self.socket = None
         self.eventlets = []
@@ -37,8 +39,8 @@ class Ldp(object):
         self.pool.waitall()
 
     def run_tcp_handler(self):
-        print("Starting TCP socket on %s:%s" % (self.listen_ip, self.listen_port))
-        self.stream_server = StreamServer((self.listen_ip, self.listen_port), self.handle_tcp)
+        print("Starting TCP socket on %s:%s" % (self.listen_ip, self.LISTEN_PORT))
+        self.stream_server = StreamServer((self.listen_ip, self.LISTEN_PORT), self.handle_tcp)
         self.stream_server.serve_forever()
 
     def handle_tcp(self, socket, address):
@@ -87,10 +89,10 @@ class Ldp(object):
 
     def handle_packets_in(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(('224.0.0.2', self.listen_port))
+        self.socket.bind((self.MULTICAST_ADDRESS, self.LISTEN_PORT))
         self.socket.setsockopt(
             socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
-            socket.inet_aton('224.0.0.2') + socket.inet_aton(self.listen_ip)
+            socket.inet_aton(self.MULTICAST_ADDRESS) + socket.inet_aton(self.listen_ip)
         )
 
         self.poller = select.poll()
@@ -149,7 +151,7 @@ class Ldp(object):
         }
         message = LdpHelloMessage(message_id, tlvs)
         pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
-        address = ('224.0.0.2', 646)
+        address = (self.MULTICAST_ADDRESS, self.LISTEN_PORT)
         if self.socket:
             self.socket.sendto(pdu.pack(), address)
         else:
