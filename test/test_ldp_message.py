@@ -1,9 +1,9 @@
 from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMessage, LdpAddressMessage, \
-                              LdpMessageParser
+                              LdpMessageParser, LdpLabelMappingMessage
 import socket
 import struct
 import unittest
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv4Network
 
 def build_byte_string(hex_stream):
     values = [int(x, 16) for x in map(''.join, zip(*[iter(hex_stream)]*2))]
@@ -101,3 +101,28 @@ class LdpMessageTestCase(unittest.TestCase):
         message = LdpAddressMessage(3, addresses, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
+
+    def test_label_mapping_message_parses(self):
+        serialised_message = build_byte_string("0400001800000005010000080200011e0a0000080200000400000003")
+        message = LdpMessageParser().parse(serialised_message)
+        expected_tlvs = {}
+        expected_prefixes = [
+            IPv4Network('10.0.0.8/30')
+        ]
+        expected_label = 3
+        self.assertEqual(message.message_id, 5)
+        self.assertEqual(message.prefixes, expected_prefixes)
+        self.assertEqual(message.label, expected_label)
+        self.assertEqual(message.tlvs, expected_tlvs)
+
+    def test_label_mapping_packs(self):
+        expected_serialised_message = build_byte_string("0400001800000005010000080200011e0a0000080200000400000003")
+        tlvs = {}
+        prefixes = [
+            IPv4Network('10.0.0.8/30')
+        ]
+        label = 3
+        message = LdpLabelMappingMessage(5, prefixes, label, tlvs)
+        serialised_message = message.pack()
+        self.assertEqual(serialised_message, expected_serialised_message)
+

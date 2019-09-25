@@ -7,7 +7,7 @@ from .identifier import Identifier, parse_identifier
 from io import BytesIO
 from itertools import chain
 from collections import OrderedDict
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv4Network
 
 class LdpMessage(object):
     HELLO_MESSAGE = 0x100
@@ -229,21 +229,69 @@ class LdpKeepaliveMessage(LdpMessage):
             self.tlvs
             )
 
+def prefix_byte_length(prefix_length):
+    # whole bytes
+    byte_length = prefix_length // 8
+    # plus pad to a whole byte for remainder
+    if prefix_length % 8:
+        byte_length += 1
+
+    return byte_length
+
+def pack_prefix(prefix):
+    return prefix.network_address.packed[:prefix_byte_length(prefix.prefixlen)]
+
+def pack_fec(prefix):
+    return struct.pack("!BHB", 2, 1, prefix.prefixlen) + pack_prefix(prefix)
+
+def unpack_fec(fec):
+    fec_type, address_type, prefix_length = struct.unpack("!BHB", fec[:4])
+
+    if fec_type != 2:
+        raise Exception("Got bad FEC type: %s" % fec_type)
+    if address_type != 1:
+        raise Exception("Got bad address type: %s" % address_type)
+
+    squashed_prefix = fec[4:4+prefix_byte_length(prefix_length)]
+    prefix = squashed_prefix + (b'\x00' * (4 - len(squashed_prefix)))
+    return IPv4Network(prefix).supernet(new_prefix=prefix_length)
+
+def unpack_fec_tlv(packed_fecs):
+    prefixes = []
+
+    print("unpacking fecs %s" % packed_fecs)
+    while packed_fecs:
+        prefix = unpack_fec(packed_fecs)
+        print("prefix: %s" % prefix)
+        packed_fecs = packed_fecs[4+prefix_byte_length(prefix.prefixlen):]
+        prefixes.append(prefix)
+
+    return prefixes
+
+def pack_fec_tlv(prefixes):
+    # assume IPv4
+    data_chunks = []
+    for prefix in prefixes:
+        data_chunks.append(pack_fec(prefix))
+    return b''.join(data_chunks)
+
 @register_parser
 class LdpLabelMappingMessage(LdpMessage):
     MSG_TYPE = LdpMessage.LABEL_MAPPING_MESSAGE
 
-    def __init__(self, message_id, fecs, labels, tlvs):
+    def __init__(self, message_id, prefixes, label, tlvs):
         self.message_id = message_id
-        self.fecs = fecs
-        self.labels = labels
+        self.prefixes = prefixes
+        self.label = label
         self.tlvs = tlvs
 
     def build_common_tlvs(self):
         # handle common TLVs
+        fecs = pack_fec_tlv(self.prefixes)
+        packed_label = integer_to_bytes(self.label)
         return OrderedDict([
-            (0x0100, self.fecs)
-            (0x0200, self.labels)
+            (0x0100, fecs),
+            (0x0200, packed_label)
         ])
 
     @classmethod
@@ -252,9 +300,14 @@ class LdpLabelMappingMessage(LdpMessage):
 
         # handle common TLVs
         fecs = generic_message.tlvs.pop(0x0100)
-        labels = generic_message.tlvs.pop(0x0200)
+        packed_label = generic_message.tlvs.pop(0x0200)
+        label = bytes_to_integer(packed_label)
+        print("got fecs")
+        print(fecs)
 
-        return cls(generic_message.message_id, fecs, labels, generic_message.tlvs)
+        prefixes = unpack_fec_tlv(fecs)
+
+        return cls(generic_message.message_id, prefixes, label, generic_message.tlvs)
 
     def pack(self):
         combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
@@ -262,9 +315,9 @@ class LdpLabelMappingMessage(LdpMessage):
         return LdpGenericMessage(self.MSG_TYPE, self.message_id, combined_tlvs).pack()
 
     def __str__(self):
-        return "LdpLabelMappingMessage: ID: %s, FECS: %s, Labels: %s, TLVs: %s" % (
+        return "LdpLabelMappingMessage: ID: %s, Prefixes: %s, Label: %s, TLVs: %s" % (
             self.message_id,
-            self.fecs,
-            self.labels,
+            self.prefixes,
+            self.label,
             self.tlvs
             )
