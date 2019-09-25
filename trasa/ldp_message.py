@@ -259,10 +259,8 @@ def unpack_fec(fec):
 def unpack_fec_tlv(packed_fecs):
     prefixes = []
 
-    print("unpacking fecs %s" % packed_fecs)
     while packed_fecs:
         prefix = unpack_fec(packed_fecs)
-        print("prefix: %s" % prefix)
         packed_fecs = packed_fecs[4+prefix_byte_length(prefix.prefixlen):]
         prefixes.append(prefix)
 
@@ -302,8 +300,6 @@ class LdpLabelMappingMessage(LdpMessage):
         fecs = generic_message.tlvs.pop(0x0100)
         packed_label = generic_message.tlvs.pop(0x0200)
         label = bytes_to_integer(packed_label)
-        print("got fecs")
-        print(fecs)
 
         prefixes = unpack_fec_tlv(fecs)
 
