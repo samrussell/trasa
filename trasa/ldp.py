@@ -130,7 +130,7 @@ class Ldp(object):
             0x0401 : build_byte_string("ac1a016a")
         }
         message = LdpHelloMessage(message_id, tlvs)
-        pdu = LdpPdu(1, 0xac1a016a, 0, [message.pack()])
+        pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
         address = (self.MULTICAST_ADDRESS, self.LISTEN_PORT)
         if self.socket:
             self.socket.sendto(pdu.pack(), address)

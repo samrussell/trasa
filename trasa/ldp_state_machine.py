@@ -24,14 +24,14 @@ class LdpStateMachine:
                 0,
                 {}
             )
-            pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
+            pdu = LdpPdu(1, "172.26.1.106", 0, [reply_message.pack()])
             outbound_pdus.append(pdu)
         # simple mode part 2 - do the same with keepalives
         elif isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
             message_id = self.messages_sent+1
             reply_message.message_id = message_id
-            pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
+            pdu = LdpPdu(1, "172.26.1.106", 0, [reply_message.pack()])
             outbound_pdus.append(pdu)
 
         self.messages_sent += len(outbound_pdus)

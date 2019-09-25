@@ -3,6 +3,7 @@ import socket
 from .packing_tools import bytes_to_short, bytes_to_integer
 from .chopper import Chopper
 from .ldp_message import LdpMessageParser
+from .identifier import Identifier, parse_identifier
 from io import BytesIO
 
 def parse_messages(serialised_messages):
@@ -27,11 +28,7 @@ class LdpPdu(object):
         self.messages = messages
 
     def pack(self):
-        packed_pdu_body = struct.pack(
-            "!IH",
-            self.lsr_id,
-            self.label_space_id
-            ) + pack_messages(self.messages)
+        packed_pdu_body = Identifier(self.lsr_id, self.label_space_id).pack() + pack_messages(self.messages)
         pdu_length = len(packed_pdu_body)
         packed_pdu_header = struct.pack(
             "!HH",
@@ -43,14 +40,15 @@ class LdpPdu(object):
 
 
     def __str__(self):
-        return "LdpPdu: Version %s, LSR ID: %s, Label space ID: %s, Messages: %s" % (
+        return "LdpPdu: Version %s, ID: %s, Messages: %s" % (
             self.version,
-            self.lsr_id,
-            self.label_space_id,
+            Identifier(self.lsr_id,
+            self.label_space_id),
             [str(x) for x in self.messages])
 
 def parse_ldp_pdu(serialised_pdu):
-    version, pdu_length, lsr_id, label_space_id  = struct.unpack("!HHIH", serialised_pdu[:LdpPdu.HEADER_LENGTH])
+    version, pdu_length, packed_identifier = struct.unpack("!HH6s", serialised_pdu[:LdpPdu.HEADER_LENGTH])
+    identifier = parse_identifier(packed_identifier)
     serialised_messages = serialised_pdu[LdpPdu.HEADER_LENGTH:]
     messages = parse_messages(serialised_messages)
-    return LdpPdu(version, lsr_id, label_space_id, messages)
+    return LdpPdu(version, identifier.router_id, identifier.label_space_id, messages)
