@@ -4,10 +4,10 @@ from time import time
 
 import struct
 import select
-from copy import copy
 
 from .ldp_pdu import LdpPdu, parse_ldp_pdu
-from .ldp_message import LdpHelloMessage, LdpInitialisationMessage, LdpKeepaliveMessage
+from .ldp_message import LdpHelloMessage
+from .ldp_state_machine import LdpStateMachine
 from .stream_server import StreamServer
 from .chopper import Chopper
 
@@ -25,10 +25,12 @@ class Ldp(object):
         self.listen_ip = listen_ip
         self.running = False
         self.socket = None
+        self.state_machine = None
         self.eventlets = []
 
     def run(self):
         self.running = True
+        self.state_machine = LdpStateMachine()
         self.pool = GreenPool()
         self.eventlets = []
 
@@ -57,32 +59,9 @@ class Ldp(object):
                 pdu = parse_ldp_pdu(serialised_pdu)
                 messages = pdu.messages
                 for message in messages:
-                    print("Message: %s" % message)
-                    # simple mode - when we get an initialisation message send one back
-                    if isinstance(message, LdpInitialisationMessage):
-                        message_id = messages_sent+1
-                        reply_message = LdpInitialisationMessage(
-                            message_id,
-                            1,
-                            180,
-                            0,
-                            0,
-                            0,
-                            "172.26.1.112",
-                            0,
-                            {}
-                        )
-                        pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
+                    outbound_pdus = self.state_machine.message_received(message)
+                    for pdu in outbound_pdus:
                         socket.send(pdu.pack())
-                        messages_sent += 1
-                    # simple mode part 2 - do the same with keepalives
-                    if isinstance(message, LdpKeepaliveMessage):
-                        reply_message = copy(message)
-                        message_id = messages_sent+1
-                        reply_message.message_id = message_id
-                        pdu = LdpPdu(1, 0xac1a016a, 0, [reply_message.pack()])
-                        socket.send(pdu.pack())
-                        messages_sent += 1
 
             except SocketClosedError as e:
                 print("Socket closed from %s:%s" % (peer_ip, peer_port))
