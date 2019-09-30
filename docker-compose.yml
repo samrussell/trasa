@@ -12,14 +12,26 @@ services:
                 ipv4_address: 172.26.1.111
         volumes:
             - ./quagga/:/etc/quagga/
-    frr:
+    frr-near:
         image: 'cumulusnetworks/frrouting:latest'
         privileged: true
         networks:
+            frr-net:
+                ipv4_address: 172.26.2.112
+                priority: 1000
             trasa-net:
                 ipv4_address: 172.26.1.112
+                priority: 900
         volumes:
-            - ./frr/:/etc/frr/
+            - ./frr_near/:/etc/frr/
+    frr-far:
+        image: 'cumulusnetworks/frrouting:latest'
+        privileged: true
+        networks:
+            frr-net:
+                ipv4_address: 172.26.2.111
+        volumes:
+            - ./frr_far/:/etc/frr/
     debug:
         build:
             context: .
@@ -27,6 +39,8 @@ services:
         image: 'trasa/trasa:latest'
         command: bash
         networks:
+            frr-net:
+                ipv4_address: 172.26.2.104
             trasa-net:
                 ipv4_address: 172.26.1.104
         volumes:
@@ -48,3 +62,7 @@ networks:
         ipam:
             config:
                 - subnet: 172.26.1.0/24
+    frr-net:
+        ipam:
+            config:
+                - subnet: 172.26.2.0/24
