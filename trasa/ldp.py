@@ -110,10 +110,9 @@ class Ldp(object):
     def send_hello(self, message_id):
         print("Sending hello message")
         tlvs = {
-            0x0400 : build_byte_string("000f0000"),
             0x0401 : build_byte_string("ac1a016a")
         }
-        message = LdpHelloMessage(message_id, tlvs)
+        message = LdpHelloMessage(message_id, 15, False, False, tlvs)
         pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
         if self.multicast_socket:
             self.multicast_socket.send(pdu.pack())

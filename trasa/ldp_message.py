@@ -81,21 +81,49 @@ def pack_tlvs(tlvs):
 class LdpHelloMessage(LdpMessage):
     MSG_TYPE = LdpMessage.HELLO_MESSAGE
 
-    def __init__(self, message_id, tlvs):
+    def __init__(self, message_id, hold_time, targeted, request_targeted, tlvs):
         self.message_id = message_id
+        self.hold_time = hold_time
+        self.targeted = targeted
+        self.request_targeted = request_targeted
         self.tlvs = tlvs
+
+    def build_common_tlvs(self):
+        # handle common TLVs
+        flags = 0
+        if self.targeted:
+            flags += 0x8000
+        if self.request_targeted:
+            flags += 0x4000
+
+        common_hello = struct.pack("!HH", self.hold_time, flags)
+        return OrderedDict([
+            (0x0400, common_hello)
+        ])
 
     @classmethod
     def parse(cls, serialised_message):
         generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
-        return cls(generic_message.message_id, generic_message.tlvs)
+
+        # handle common TLVs
+        common_hello = generic_message.tlvs.pop(0x0400)
+        hold_time, flags = struct.unpack("!HH", common_hello)
+        targeted = (0x8000 & flags) > 0
+        request_targeted = (0x4000 & flags) > 0
+
+        return cls(generic_message.message_id, hold_time, targeted, request_targeted, generic_message.tlvs)
 
     def pack(self):
-        return LdpGenericMessage(self.MSG_TYPE, self.message_id, self.tlvs).pack()
+        combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
+
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, combined_tlvs).pack()
 
     def __str__(self):
-        return "LdpHelloMessage: ID: %s, TLVs: %s" % (
+        return "LdpHelloMessage: ID: %s, Hold time: %s, Targeted: %s, Request targeted: %s, TLVs: %s" % (
             self.message_id,
+            self.hold_time,
+            self.targeted,
+            self.request_targeted,
             self.tlvs
             )
 

@@ -14,22 +14,23 @@ class LdpMessageTestCase(unittest.TestCase):
         serialised_message = build_byte_string("0100001c0000000804000004002dc00004010004ac1a01650402000400000001")
         message = LdpMessageParser().parse(serialised_message)
         expected_tlvs = {
-            0x0400 : build_byte_string("002dc000"),
             0x0401 : build_byte_string("ac1a0165"),
             0x0402 : build_byte_string("00000001"),
         }
         self.assertEqual(message.message_id, 8)
+        self.assertEqual(message.hold_time, 45)
+        self.assertTrue(message.targeted)
+        self.assertTrue(message.request_targeted)
         self.assertEqual(message.tlvs, expected_tlvs)
-        self.assertEqual(len(message.tlvs), 3)
+        self.assertEqual(len(message.tlvs), 2)
 
     def test_hello_message_packs(self):
         expected_serialised_message = build_byte_string("0100001c0000000804000004002dc00004010004ac1a01650402000400000001")
         tlvs = {
-            0x0400 : build_byte_string("002dc000"),
             0x0401 : build_byte_string("ac1a0165"),
             0x0402 : build_byte_string("00000001"),
         }
-        message = LdpHelloMessage(8, tlvs)
+        message = LdpHelloMessage(8, 45, True, True, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
 
