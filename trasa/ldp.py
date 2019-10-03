@@ -10,6 +10,7 @@ from .ldp_message import LdpHelloMessage
 from .ldp_state_machine import LdpStateMachine
 from .stream_server import StreamServer
 from .chopper import Chopper
+from .multicast_socket import MulticastSocket
 
 from .error import SocketClosedError
 
@@ -68,48 +69,31 @@ class Ldp(object):
         socket.close()
 
     def handle_packets_in(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind((self.MULTICAST_ADDRESS, self.LISTEN_PORT))
-        self.socket.setsockopt(
-            socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
-            socket.inet_aton(self.MULTICAST_ADDRESS) + socket.inet_aton(self.listen_ip)
-        )
-
-        self.poller = select.poll()
-        self.poller.register(self.socket,
-                          select.POLLIN |
-                          select.POLLPRI |
-                          select.POLLERR |
-                          select.POLLHUP |
-                          select.POLLNVAL)
+        self.multicast_socket = MulticastSocket(self.MULTICAST_ADDRESS, self.LISTEN_PORT, self.listen_ip)
+        self.multicast_socket.bind()
 
         try:
             while self.running:
                 sleep(1)
-                events = self.poller.poll(10)
-                if events:
-                    while events:
-                        if len(events) > 1:
-                            raise Exception("Too many events returned from poller")
-                        fd, event = events[0]
-                        if event == select.POLLERR or event == select.POLLHUP or event == select.POLLNVAL:
-                            break
-                        if event == select.POLLIN:
-                            data, address = self.socket.recvfrom(4096)
-                            pdu = parse_ldp_pdu(data)
-                            messages = pdu.messages
-                            if len(messages) > 1:
-                                print("Weird... got PDU from %s with lots of messages: " % (address, messages))
-                                continue
+                while True:
+                    data, address = self.multicast_socket.recv(4096, 10)
+                    if not data:
+                        break
 
-                            message = messages[0]
-                            if not isinstance(message, LdpHelloMessage):
-                                print("Got message from %s but it isn't a hello message: %s" % (address, message))
-                                continue
+                    pdu = parse_ldp_pdu(data)
+                    messages = pdu.messages
+                    if len(messages) > 1:
+                        print("Weird... got PDU from %s with lots of messages: " % (address, messages))
+                        continue
 
-                            print("Got hello message from %s ID %s" % (address, message.message_id))
-                            #self.queue.put(data)
-                        events = self.poller.poll(10)
+                    message = messages[0]
+                    if not isinstance(message, LdpHelloMessage):
+                        print("Got message from %s but it isn't a hello message: %s" % (address, message))
+                        continue
+
+                    print("Got hello message from %s ID %s" % (address, message.message_id))
+                    #self.queue.put(data)
+
         except OSError:
             pass
 
@@ -131,15 +115,14 @@ class Ldp(object):
         }
         message = LdpHelloMessage(message_id, tlvs)
         pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
-        address = (self.MULTICAST_ADDRESS, self.LISTEN_PORT)
-        if self.socket:
-            self.socket.sendto(pdu.pack(), address)
+        if self.multicast_socket:
+            self.multicast_socket.send(pdu.pack())
         else:
             print("Not sending; UDP socket dead")
 
     def shutdown(self):
         self.running = False
-        self.socket.close()
+        self.multicast_socket.shutdown()
 
         for eventlet in self.eventlets:
             eventlet.kill()
