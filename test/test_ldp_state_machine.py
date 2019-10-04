@@ -17,5 +17,6 @@ class LdpStateMachineTestCase(unittest.TestCase):
             0,
             {}
         )
-        outbound_pdus = state_machine.message_received(message)
-        self.assertEqual(len(outbound_pdus), 1)
+        outbound_messages = state_machine.message_received(message)
+        self.assertEqual(len(outbound_messages), 1)
+        self.assertTrue(isinstance(outbound_messages[0], LdpInitialisationMessage))

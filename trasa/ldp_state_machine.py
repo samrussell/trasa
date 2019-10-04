@@ -12,7 +12,7 @@ class LdpStateMachine:
     def message_received(self, message):
         print("Message: %s" % message)
 
-        outbound_pdus = []
+        outbound_messages = []
         # simple mode - when we get an initialisation message send one back
         if isinstance(message, LdpInitialisationMessage):
             self.messages_sent = self.messages_sent + 1
@@ -29,16 +29,14 @@ class LdpStateMachine:
                 0,
                 {}
             )
-            pdu = LdpPdu(1, "172.26.1.106", 0, [reply_message.pack()])
-            outbound_pdus.append(pdu)
+            outbound_messages.append(reply_message)
         # simple mode part 2 - do the same with keepalives
         elif isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
             self.messages_sent = self.messages_sent + 1
             message_id = self.messages_sent
             reply_message.message_id = message_id
-            pdu = LdpPdu(1, "172.26.1.106", 0, [reply_message.pack()])
-            outbound_pdus.append(pdu)
+            outbound_messages.append(reply_message)
             if not self.initialised:
                 # try sending some addresses too
                 tlvs = {}
@@ -61,8 +59,8 @@ class LdpStateMachine:
                 message_id = self.messages_sent
                 label_mapping_message = LdpLabelMappingMessage(message_id, prefixes, label, tlvs)
 
-                pdu = LdpPdu(1, "172.26.1.106", 0, [address_message.pack(), label_mapping_message.pack()])
-                outbound_pdus.append(pdu)
+                outbound_messages.append(address_message)
+                outbound_messages.append(label_mapping_message)
                 self.initialised = True
 
-        return outbound_pdus
+        return outbound_messages

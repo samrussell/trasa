@@ -109,3 +109,6 @@ ENV/
 # IntelliJ IDE files
 .idea/
 *.bak
+
+# OSX
+.DS_Store
