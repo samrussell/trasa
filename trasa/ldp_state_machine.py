@@ -8,6 +8,7 @@ class LdpStateMachine:
     def __init__(self):
         self.messages_sent = 0
         self.initialised = False
+        self.state = "NONEXISTENT"
 
     def message_received(self, message):
         print("Message: %s" % message)
@@ -30,6 +31,7 @@ class LdpStateMachine:
                 {}
             )
             outbound_messages.append(reply_message)
+            self.state = "OPENREC"
         # simple mode part 2 - do the same with keepalives
         elif isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
@@ -62,5 +64,6 @@ class LdpStateMachine:
                 outbound_messages.append(address_message)
                 outbound_messages.append(label_mapping_message)
                 self.initialised = True
+            self.state = "OPERATIONAL"
 
         return outbound_messages
