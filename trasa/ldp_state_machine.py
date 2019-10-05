@@ -5,10 +5,13 @@ from copy import copy
 from functools import reduce
 
 class LdpStateMachine:
-    def __init__(self):
+    def __init__(self, local_ip, remote_ip):
+        self.local_ip = local_ip
+        self.remote_ip = remote_ip
+
         self.messages_sent = 0
         self.initialised = False
-        self.state = "NONEXISTENT"
+        self.state = "INITIALISED"
 
     def message_received(self, message):
         print("Message: %s" % message)
@@ -26,7 +29,7 @@ class LdpStateMachine:
                 0,
                 0,
                 0,
-                "172.26.1.112",
+                self.remote_ip,
                 0,
                 {}
             )
