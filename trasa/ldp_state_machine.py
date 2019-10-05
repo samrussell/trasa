@@ -1,4 +1,4 @@
-from .ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage, LdpAddressMessage, LdpLabelMappingMessage
+from .ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage, LdpAddressMessage, LdpLabelMappingMessage, LdpGenericMessage
 from .ldp_pdu import LdpPdu
 from ipaddress import IPv4Address, IPv4Network
 from copy import copy
@@ -15,7 +15,16 @@ class LdpStateMachine:
 
     def message_received(self, message):
         print("Message: %s" % message)
+        if self.state == "INITIALISED":
+            return self.handle_message_initialised_state(message)
+        if self.state == "OPENREC":
+            return self.handle_message_openrec_state(message)
+        if self.state == "OPERATIONAL":
+            return self.handle_message_operational_state(message)
 
+        raise Exception("Message received in unknown state")
+
+    def handle_message_initialised_state(self, message):
         outbound_messages = []
         # simple mode - when we get an initialisation message send one back
         if isinstance(message, LdpInitialisationMessage):
@@ -35,8 +44,18 @@ class LdpStateMachine:
             )
             outbound_messages.append(reply_message)
             self.state = "OPENREC"
-        # simple mode part 2 - do the same with keepalives
-        elif isinstance(message, LdpKeepaliveMessage):
+        else:
+            self.messages_sent = self.messages_sent + 1
+            message_id = self.messages_sent
+            reply_message = LdpGenericMessage(0x001, message_id, {})
+            outbound_messages.append(reply_message)
+            self.state = "NONEXISTENT"
+
+        return outbound_messages
+
+    def handle_message_openrec_state(self, message):
+        outbound_messages = []
+        if isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
             self.messages_sent = self.messages_sent + 1
             message_id = self.messages_sent
@@ -68,5 +87,16 @@ class LdpStateMachine:
                 outbound_messages.append(label_mapping_message)
                 self.initialised = True
             self.state = "OPERATIONAL"
+
+        return outbound_messages
+
+    def handle_message_operational_state(self, message):
+        outbound_messages = []
+        if isinstance(message, LdpKeepaliveMessage):
+            reply_message = copy(message)
+            self.messages_sent = self.messages_sent + 1
+            message_id = self.messages_sent
+            reply_message.message_id = message_id
+            outbound_messages.append(reply_message)
 
         return outbound_messages
