@@ -69,7 +69,7 @@ class Ldp(object):
                     for outbound_message in outbound_messages:
                         outbound_message.message_id = self.get_message_id()
                         print("Sending message %s" % outbound_message)
-                        pdu = LdpPdu(1, "172.26.1.106", 0, [outbound_message.pack()])
+                        pdu = LdpPdu(1, self.listen_ip, 0, [outbound_message.pack()])
                         outbound_pdus.append(pdu)
                     for pdu in outbound_pdus:
                         socket.send(pdu.pack())
@@ -122,7 +122,7 @@ class Ldp(object):
             0x0401 : build_byte_string("ac1a016a")
         }
         message = LdpHelloMessage(message_id, 15, False, False, tlvs)
-        pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
+        pdu = LdpPdu(1, self.listen_ip, 0, [message.pack()])
         if self.multicast_socket:
             self.multicast_socket.send(pdu.pack())
         else:
