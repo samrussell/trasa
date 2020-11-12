@@ -112,3 +112,8 @@ ENV/
 
 # OSX
 .DS_Store
+
+# debug
+*.pcap
+*.cap
+

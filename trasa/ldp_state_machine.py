@@ -9,7 +9,6 @@ class LdpStateMachine:
         self.local_ip = local_ip
         self.remote_ip = remote_ip
 
-        self.messages_sent = 0
         self.initialised = False
         self.state = "INITIALISED"
 
@@ -28,11 +27,9 @@ class LdpStateMachine:
         outbound_messages = []
         # simple mode - when we get an initialisation message send one back
         if isinstance(message, LdpInitialisationMessage):
-            self.messages_sent = self.messages_sent + 1
-            message_id = self.messages_sent
             # send back init message
             reply_message = LdpInitialisationMessage(
-                message_id,
+                0,
                 1,
                 180,
                 0,
@@ -42,12 +39,12 @@ class LdpStateMachine:
                 0,
                 {}
             )
+            print("Replying to initialisation message with our own message: %s" % reply_message)
             outbound_messages.append(reply_message)
             self.state = "OPENREC"
         else:
             self.messages_sent = self.messages_sent + 1
-            message_id = self.messages_sent
-            reply_message = LdpGenericMessage(0x001, message_id, {})
+            reply_message = LdpGenericMessage(0x001, 0, {})
             outbound_messages.append(reply_message)
             self.state = "NONEXISTENT"
 
@@ -57,9 +54,6 @@ class LdpStateMachine:
         outbound_messages = []
         if isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
-            self.messages_sent = self.messages_sent + 1
-            message_id = self.messages_sent
-            reply_message.message_id = message_id
             outbound_messages.append(reply_message)
             if not self.initialised:
                 # try sending some addresses too
@@ -70,18 +64,12 @@ class LdpStateMachine:
                     IPv4Address('6.6.6.6'),
                     IPv4Address('66.6.6.6')
                 ]
-                self.messages_sent = self.messages_sent + 1
-                message_id = self.messages_sent
-                address_message = LdpAddressMessage(message_id, addresses, tlvs)
                 # also a path and routes
                 tlvs = {}
                 prefixes = [
                     IPv4Network('10.0.0.8/30')
                 ]
                 label = 3
-                self.messages_sent = self.messages_sent + 1
-                message_id = self.messages_sent
-                label_mapping_message = LdpLabelMappingMessage(message_id, prefixes, label, tlvs)
 
                 outbound_messages.append(address_message)
                 outbound_messages.append(label_mapping_message)
@@ -94,9 +82,6 @@ class LdpStateMachine:
         outbound_messages = []
         if isinstance(message, LdpKeepaliveMessage):
             reply_message = copy(message)
-            self.messages_sent = self.messages_sent + 1
-            message_id = self.messages_sent
-            reply_message.message_id = message_id
             outbound_messages.append(reply_message)
 
         return outbound_messages

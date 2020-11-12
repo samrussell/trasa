@@ -28,6 +28,11 @@ class Ldp(object):
         self.socket = None
         self.state_machine = None
         self.eventlets = []
+        self.last_message_id = 0
+
+    def get_message_id(self):
+        self.last_message_id += 1
+        return self.last_message_id
 
     def run(self):
         self.running = True
@@ -63,6 +68,7 @@ class Ldp(object):
                     outbound_messages = self.state_machine.message_received(message)
                     outbound_pdus = []
                     for message in outbound_messages:
+                        message.message_id = self.get_message_id()
                         pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
                         outbound_pdus.append(pdu)
                     for pdu in outbound_pdus:
@@ -103,12 +109,10 @@ class Ldp(object):
 
     def hello_timer(self):
         next_timer_at = int(time())
-        message_id = 1
         while self.running:
             sleep(1)
             if int(time()) > next_timer_at:
-                self.send_hello(message_id)
-                message_id += 1
+                self.send_hello(self.get_message_id())
                 next_timer_at += 5
 
     def send_hello(self, message_id):
