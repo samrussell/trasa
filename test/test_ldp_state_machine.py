@@ -1,5 +1,5 @@
 from trasa.ldp_state_machine import LdpStateMachine
-from trasa.ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage
+from trasa.ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage, LdpNotificationMessage
 
 import unittest
 
@@ -30,7 +30,7 @@ class LdpStateMachineTestCase(unittest.TestCase):
         message = LdpKeepaliveMessage(2, {})
         outbound_messages = state_machine.message_received(message)
         self.assertEqual(len(outbound_messages), 1)
-        #self.assertTrue(isinstance(outbound_messages[0], LdpNotificationMEssage)) # doesn't exist yet
+        self.assertTrue(isinstance(outbound_messages[0], LdpNotificationMessage)) # doesn't exist yet
         self.assertEqual(state_machine.state, "NONEXISTENT")
 
     def test_openrec_keepalive_message_received(self):

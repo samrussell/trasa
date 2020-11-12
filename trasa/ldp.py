@@ -103,7 +103,6 @@ class Ldp(object):
                         continue
 
                     print("Got hello message from %s ID %s" % (address, message.message_id))
-                    #self.queue.put(data)
 
         except OSError:
             pass

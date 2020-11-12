@@ -1,4 +1,4 @@
-from .ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage, LdpAddressMessage, LdpLabelMappingMessage, LdpGenericMessage
+from .ldp_message import LdpInitialisationMessage, LdpKeepaliveMessage, LdpAddressMessage, LdpLabelMappingMessage, LdpNotificationMessage
 from .ldp_pdu import LdpPdu
 from ipaddress import IPv4Address, IPv4Network
 from copy import copy
@@ -43,8 +43,7 @@ class LdpStateMachine:
             outbound_messages.append(reply_message)
             self.state = "OPENREC"
         else:
-            self.messages_sent = self.messages_sent + 1
-            reply_message = LdpGenericMessage(0x001, 0, {})
+            reply_message = LdpNotificationMessage(0, 1, 0, 0x0a, message.message_id, message.MSG_TYPE, {})
             outbound_messages.append(reply_message)
             self.state = "NONEXISTENT"
 
