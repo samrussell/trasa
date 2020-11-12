@@ -59,15 +59,13 @@ class LdpStateMachine:
                 # try sending some addresses too
                 tlvs = {}
                 addresses = [
-                    IPv4Address('10.1.67.6'),
-                    IPv4Address('10.1.56.6'),
-                    IPv4Address('6.6.6.6'),
-                    IPv4Address('66.6.6.6')
+                    IPv4Address(self.local_ip)
                 ]
                 # also a path and routes
                 tlvs = {}
                 prefixes = [
-                    IPv4Network('10.0.0.8/30')
+                    IPv4Network('10.0.0.8/30'),
+                    IPv4Network('8.8.0.0/16')
                 ]
                 label = 3
 

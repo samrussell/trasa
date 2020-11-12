@@ -67,9 +67,10 @@ class Ldp(object):
                 for message in messages:
                     outbound_messages = self.state_machine.message_received(message)
                     outbound_pdus = []
-                    for message in outbound_messages:
-                        message.message_id = self.get_message_id()
-                        pdu = LdpPdu(1, "172.26.1.106", 0, [message.pack()])
+                    for outbound_message in outbound_messages:
+                        outbound_message.message_id = self.get_message_id()
+                        print("Sending message %s" % outbound_message)
+                        pdu = LdpPdu(1, "172.26.1.106", 0, [outbound_message.pack()])
                         outbound_pdus.append(pdu)
                     for pdu in outbound_pdus:
                         socket.send(pdu.pack())
