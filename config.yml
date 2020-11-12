@@ -4,7 +4,7 @@ routers:
     local_address: 172.26.1.106
     bgp_port: 179
     peers:
-      - peer_ip: 172.26.1.101
+      - peer_ip: 172.26.1.111
         peer_as: 111333
     routes:
       - prefix: "10.1.234.0/24"

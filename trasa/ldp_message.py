@@ -10,6 +10,7 @@ from collections import OrderedDict
 from ipaddress import IPv4Address, IPv4Network
 
 class LdpMessage(object):
+    NOTIFICATION_MESSAGE = 0x001
     HELLO_MESSAGE = 0x100
     INIT_MESSAGE = 0x200
     KEEPALIVE_MESSAGE = 0x201
@@ -76,6 +77,62 @@ def parse_tlvs(serialised_tlvs):
 
 def pack_tlvs(tlvs):
     return b"".join([pack_tlv(key, value) for key, value in tlvs.items()])
+
+@register_parser
+class LdpNotificationMessage(LdpMessage):
+    MSG_TYPE = LdpMessage.NOTIFICATION_MESSAGE
+
+    def __init__(self, message_id, fatal, forward, status_data, error_message_id, error_message_type, tlvs):
+        self.message_id = message_id
+        self.fatal = fatal
+        self.forward = forward
+        self.status_data = status_data
+        self.error_message_id = error_message_id
+        self.error_message_type = error_message_type
+        self.tlvs = tlvs
+
+    def build_common_tlvs(self):
+        # handle common TLVs
+        status_code = self.status_data
+        if self.fatal:
+            status_code += 0x80000000
+        if self.forward:
+            status_code += 0x40000000
+
+        status_tlv = struct.pack("!IIH", status_code, self.error_message_id, self.error_message_type)
+        return OrderedDict([
+            (0x0300, status_tlv)
+        ])
+
+    @classmethod
+    def parse(cls, serialised_message):
+        generic_message = LdpGenericMessage.parse(cls.MSG_TYPE, serialised_message)
+
+        # handle common TLVs
+        # TODO handle status TLV when it should be forwarded
+        status_tlv = generic_message.tlvs.pop(0x0300)
+        status_code, error_message_id, error_message_type = struct.unpack("!IIH", status_tlv)
+        fatal = (status_code & 0x80000000) >> 31
+        forward = (status_code & 0x40000000) >> 30
+        status_data = (status_code & 0x3FFFFFFF)
+
+        return cls(generic_message.message_id, fatal, forward, status_data, error_message_id, error_message_type, generic_message.tlvs)
+
+    def pack(self):
+        combined_tlvs = OrderedDict(chain(self.build_common_tlvs().items(), self.tlvs.items()))
+
+        return LdpGenericMessage(self.MSG_TYPE, self.message_id, combined_tlvs).pack()
+
+    def __str__(self):
+        return "LdpNotificationMessage: ID: %s, fatal: %s, forward: %s, status_data: %s, error_message_id: %s, error_message_type: %s, TLVs: %s" % (
+            self.message_id,
+            self.fatal,
+            self.forward,
+            self.status_data,
+            self.error_message_id,
+            self.error_message_type,
+            self.tlvs
+            )
 
 @register_parser
 class LdpHelloMessage(LdpMessage):

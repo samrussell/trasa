@@ -31,7 +31,7 @@ class Ldp(object):
 
     def run(self):
         self.running = True
-        self.state_machine = LdpStateMachine("172.26.1.106", "172.26.1.112")
+        self.state_machine = LdpStateMachine("172.26.1.106", "172.26.1.111")
         self.pool = GreenPool()
         self.eventlets = []
 

@@ -1,5 +1,5 @@
 from trasa.ldp_message import LdpMessage, LdpHelloMessage, LdpInitialisationMessage, LdpAddressMessage, \
-                              LdpMessageParser, LdpLabelMappingMessage
+                              LdpMessageParser, LdpLabelMappingMessage, LdpNotificationMessage
 import socket
 import struct
 import unittest
@@ -124,6 +124,23 @@ class LdpMessageTestCase(unittest.TestCase):
         ]
         label = 3
         message = LdpLabelMappingMessage(5, prefixes, label, tlvs)
+        serialised_message = message.pack()
+        self.assertEqual(serialised_message, expected_serialised_message)
+
+    def test_notification_message_parses(self):
+        serialised_message = build_byte_string("00010012024f55080300000a8000000a000000000000")
+        message = LdpMessageParser().parse(serialised_message)
+        expected_tlvs = {}
+        self.assertEqual(message.fatal, 1)
+        self.assertEqual(message.forward, 0)
+        self.assertEqual(message.status_data, 10)
+        self.assertEqual(message.error_message_id, 0)
+        self.assertEqual(message.error_message_type, 0)
+
+    def test_notification_message_packs(self):
+        expected_serialised_message = build_byte_string("00010012024f55080300000a8000000a000000000000")
+        tlvs = {}
+        message = LdpNotificationMessage(0x024f5508, 1, 0, 0x0a, 0, 0, tlvs)
         serialised_message = message.pack()
         self.assertEqual(serialised_message, expected_serialised_message)
 
