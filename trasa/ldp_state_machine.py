@@ -71,6 +71,9 @@ class LdpStateMachine:
                 ]
                 label = 3
 
+                address_message = LdpAddressMessage(0, addresses, tlvs)
+                label_mapping_message = LdpLabelMappingMessage(0, prefixes, label, tlvs)
+
                 outbound_messages.append(address_message)
                 outbound_messages.append(label_mapping_message)
                 self.initialised = True
