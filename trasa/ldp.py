@@ -26,7 +26,6 @@ class Ldp(object):
         self.listen_ip = listen_ip
         self.running = False
         self.socket = None
-        self.state_machine = None
         self.eventlets = []
         self.last_message_id = 0
 
@@ -36,7 +35,6 @@ class Ldp(object):
 
     def run(self):
         self.running = True
-        self.state_machine = LdpStateMachine("172.26.1.106", "172.26.1.112")
         self.pool = GreenPool()
         self.eventlets = []
 
@@ -57,15 +55,16 @@ class Ldp(object):
         print("Got connection from %s:%s" % (peer_ip, peer_port))
         input_stream = socket.makefile(mode="rb")
         chopper = Chopper(4, 2, 0, input_stream)
-        while True:
-            sleep(0)
-            try:
+        state_machine = LdpStateMachine(self.listen_ip, peer_ip)
+        try:
+            while True:
+                sleep(0)
                 serialised_pdu = chopper.next()
                 print("Got PDU from %s:%s" % (peer_ip, peer_port))
                 pdu = parse_ldp_pdu(serialised_pdu)
                 messages = pdu.messages
                 for message in messages:
-                    outbound_messages = self.state_machine.message_received(message)
+                    outbound_messages = state_machine.message_received(message)
                     outbound_pdus = []
                     for outbound_message in outbound_messages:
                         outbound_message.message_id = self.get_message_id()
@@ -74,9 +73,11 @@ class Ldp(object):
                         outbound_pdus.append(pdu)
                     for pdu in outbound_pdus:
                         socket.send(pdu.pack())
-
-            except SocketClosedError as e:
-                print("Socket closed from %s:%s" % (peer_ip, peer_port))
+                if state_machine.state == "NONEXISTENT":
+                    break
+        except (SocketClosedError, StopIteration) as e:
+            print("Socket closed from %s:%s" % (peer_ip, peer_port))
+        print("Closing socket with %s:%s" % (peer_ip, peer_port))
         socket.close()
 
     def handle_packets_in(self):
